@@ -1,0 +1,6 @@
+{
+  "name": "Toot Together: 3D Co-op Physics Party",
+  "description": "Hilarious 3D multiplayer co-op comedy game with ragdoll physics, fart-boost acrobatics, moving obstacles, and teamwork challenges.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
