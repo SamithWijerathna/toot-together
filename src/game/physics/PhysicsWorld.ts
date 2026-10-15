@@ -384,11 +384,13 @@ export class PhysicsWorld {
         const radialDist = Math.sqrt(dx * dx + dz * dz);
 
         // Only test if player is within arm reach + player radius margin
-        if (radialDist < 0.6 || radialDist > obs.armLength + 1.0) continue;
+        if (radialDist < 0.6 || radialDist > obs.armLength + 0.35) continue;
 
         // Only test if player Y is within arm's vertical zone
         // Arm base is at pivot.y, arm height = armHalfHeight * 2
-        if (pos.y < piv.y - 0.2 || pos.y > piv.y + obs.armHalfHeight * 2 + 1.0) continue;
+        const armTop = piv.y + obs.armHalfHeight * 2;
+        // If player has jumped above the bar, they clear it!
+        if (pos.y < piv.y - 0.2 || pos.y > armTop + 0.25) continue;
 
         // Current arm world angle
         const armAngle = obs.pivot.rotation.y;
@@ -406,13 +408,14 @@ export class PhysicsWorld {
         const diffB = obs.isBar ? angleDiff(playerAngle, armAngle + Math.PI) : Infinity;
         const minDiff = Math.min(diffA, diffB);
 
-        // Hit zone: within 0.38 rad (~22°) of arm centre-line
-        if (minDiff < 0.38) {
-          const knockSpeed = Math.abs(obs.speed) * radialDist * 4.0;
+        // Hit zone: matches physical arm half-width + player radius
+        const hitAngle = Math.max(0.18, Math.atan2(0.65, radialDist));
+        if (minDiff < hitAngle) {
+          const knockSpeed = Math.abs(obs.speed) * radialDist * 3.2;
           const pushDir = new THREE.Vector3(dx, 0, dz).normalize();
           this.triggerRagdoll(state, new THREE.Vector3(
             pushDir.x * knockSpeed,
-            5.5,
+            4.5,
             pushDir.z * knockSpeed
           ));
           break;

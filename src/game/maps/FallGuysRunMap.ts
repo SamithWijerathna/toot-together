@@ -145,6 +145,15 @@ function makeSweeper(
   pivot.position.set(pivotX, pivotY, pivotZ);
   pivot.rotation.y = phase;
 
+  // Central rotating turntable hub
+  const hubMesh = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.55, 0.55, armH + 0.35, 16),
+    mat
+  );
+  hubMesh.position.set(0, (armH + 0.35) * 0.5, 0);
+  hubMesh.castShadow = true;
+  pivot.add(hubMesh);
+
   // Arm mesh offset: if isBar → centred at (0,0,0), if one-sided → offset so tip is at armLen
   const armOffsetX = isBar ? 0 : armLen * 0.5;
   const actualGeoLen = isBar ? armLen : armLen;
@@ -166,6 +175,50 @@ function makeSweeper(
   };
   rotatingObstacles.push(data);
   return data;
+}
+
+/**
+ * Add a sheltered resting alcove on the track edge where players can stay 100% safe from hazards.
+ */
+function addSafeAlcove(
+  group: THREE.Group,
+  colliders: StaticCollider[],
+  floorMat: THREE.Material,
+  wallMat: THREE.Material,
+  side: 'left' | 'right',
+  cz: number,
+  depth: number = 5.0,
+  width: number = 4.5,
+  baseY: number = 0
+) {
+  const floorY = baseY - 0.5;
+  const trackEdge = 7.0; // half of TRACK_W
+  const cx = side === 'right' ? trackEdge + width * 0.5 : -trackEdge - width * 0.5;
+  const outerX = side === 'right' ? trackEdge + width + 0.35 : -trackEdge - width - 0.35;
+  const wallH = 2.5;
+
+  // 1. Safe floor slab
+  addFloor(group, colliders, floorMat, cx, floorY, cz, width, 1.0, depth);
+
+  // 2. Decorative glowing green safe zone badge
+  const safePad = new THREE.Mesh(
+    new THREE.BoxGeometry(width - 0.6, 0.08, depth - 0.6),
+    new THREE.MeshStandardMaterial({
+      color: 0x22c55e,
+      roughness: 0.4,
+      emissive: 0x22c55e,
+      emissiveIntensity: 0.3,
+    })
+  );
+  safePad.position.set(cx, baseY + 0.04, cz);
+  group.add(safePad);
+
+  // 3. Outer back safety wall
+  addWall(group, colliders, wallMat, outerX, floorY + wallH * 0.5, cz, 0.7, wallH, depth);
+
+  // 4. Side walls enclosing the alcove
+  addWall(group, colliders, wallMat, cx, floorY + wallH * 0.5, cz - depth * 0.5, width, wallH, 0.7);
+  addWall(group, colliders, wallMat, cx, floorY + wallH * 0.5, cz + depth * 0.5, width, wallH, 0.7);
 }
 
 /**
@@ -552,56 +605,73 @@ export function buildFallGuysRun(): MapBuildResult {
 
     // Solid floor
     addFloor(group, colliders, M.floorCyan, 0, FLOOR_Y, cz, TRACK_W, SLAB_H, len);
-    addRails(group, colliders, M.wallPurple, LEFT, RIGHT, FLOOR_Y, cz, len + 2);
 
-    // 5 sweeper arms at staggered Z, alternating wall-mounted and centre-bar
-    // Arm 1: Left wall, one-sided, sweeps right (slow)
+    // Segmented guardrails with doorway gaps into 4 safe haven alcoves:
+    // Left side alcoves at Z = -50 and Z = -65 (doors from -47.5 to -52.5 and -62.5 to -67.5)
+    addWall(group, colliders, M.wallPurple, LEFT, FLOOR_Y + WALL_H * 0.5, -39.25, 0.7, WALL_H, 16.5);
+    addWall(group, colliders, M.wallPurple, LEFT, FLOOR_Y + WALL_H * 0.5, -57.5, 0.7, WALL_H, 10.0);
+    addWall(group, colliders, M.wallPurple, LEFT, FLOOR_Y + WALL_H * 0.5, -69.25, 0.7, WALL_H, 3.5);
+
+    // Right side alcoves at Z = -42 and Z = -58 (doors from -39.5 to -44.5 and -55.5 to -60.5)
+    addWall(group, colliders, M.wallPurple, RIGHT, FLOOR_Y + WALL_H * 0.5, -35.25, 0.7, WALL_H, 8.5);
+    addWall(group, colliders, M.wallPurple, RIGHT, FLOOR_Y + WALL_H * 0.5, -50.0, 0.7, WALL_H, 11.0);
+    addWall(group, colliders, M.wallPurple, RIGHT, FLOOR_Y + WALL_H * 0.5, -65.75, 0.7, WALL_H, 10.5);
+
+    // 4 Sheltered Resting Alcoves (100% immune from sweepers, room to stand & wait)
+    addSafeAlcove(group, colliders, M.wallYellow, M.wallPurple, 'right', -42, 5.0, 4.5);
+    addSafeAlcove(group, colliders, M.wallYellow, M.wallPurple, 'left', -50, 5.0, 4.5);
+    addSafeAlcove(group, colliders, M.wallYellow, M.wallPurple, 'right', -58, 5.0, 4.5);
+    addSafeAlcove(group, colliders, M.wallYellow, M.wallPurple, 'left', -65, 5.0, 4.5);
+
+    // 5 sweeper arms at staggered Z — now low hurdle height (armH = 0.55), fully jumpable with Spacebar!
+    // Arm 1: Left wall, leaves 4.5 units of safe walking space on right
     makeSweeper(group, rotatingObstacles, M.sweeperOrange,
       's2-sw-1',
       LEFT + 0.35, 0, -38,         // pivot at left wall edge, Y=0 (arm base), Z=-38
-      TRACK_W - 1.0,               // arm length (almost full width)
-      1.6, 1.0,                    // height, depth
+      9.5,                         // arm length (leaves safe lane on right)
+      0.55, 0.75,                  // height, depth (jumpable hurdle!)
       0.9, false, 0                // speed rad/s, one-sided, phase 0
     );
 
-    // Arm 2: Right wall, one-sided, sweeps left (medium, opposite direction)
+    // Arm 2: Right wall, leaves 4.5 units of safe walking space on left
     makeSweeper(group, rotatingObstacles, M.sweeperOrange,
       's2-sw-2',
       RIGHT - 0.35, 0, -46,
-      TRACK_W - 1.0,
-      1.6, 1.0,
-      -1.1, false, Math.PI        // phase PI so it's opposite position to arm1
+      9.5,
+      0.55, 0.75,
+      -1.1, false, Math.PI
     );
 
-    // Arm 3: Centre-mounted bar — full-width spinning bar (hardest to dodge)
+    // Arm 3: Centre-mounted double-bar (leaves 2.75 units safe margin along both walls)
     makeSweeper(group, rotatingObstacles, M.hazardRed,
       's2-sw-3',
       0, 0, -54,
-      TRACK_W - 2.0,               // total bar length
-      1.8, 1.2,
-      1.4, true, Math.PI * 0.5    // isBar=true (spins like a propeller)
+      8.5,                         // total bar length (reach 4.25 each side)
+      0.55, 0.75,
+      1.3, true, Math.PI * 0.5
     );
 
-    // Arm 4: Left wall one-sided, fast
+    // Arm 4: Left wall, leaves 4.5 units safe on right
     makeSweeper(group, rotatingObstacles, M.sweeperOrange,
       's2-sw-4',
       LEFT + 0.35, 0, -61,
-      TRACK_W - 1.5,
-      1.6, 1.0,
-      -1.6, false, Math.PI * 0.75
+      9.5,
+      0.55, 0.75,
+      -1.4, false, Math.PI * 0.75
     );
 
-    // Arm 5: Centre bar, faster
+    // Arm 5: Centre bar, leaves 2.75 units safe on both sides
     makeSweeper(group, rotatingObstacles, M.hazardRed,
       's2-sw-5',
-      0, 0, -68,
-      TRACK_W - 3.0,
-      1.8, 1.2,
-      -1.8, true, 0
+      0, 0, -67,
+      8.5,
+      0.55, 0.75,
+      1.5, true, 0
     );
 
-    // Checkpoint 1 at end of sweeper alley
-    const cp1 = createCheckpointMesh(1, new THREE.Vector3(0, 0.5, -69));
+    // Large safe staging landing plaza at Checkpoint 1
+    addFloor(group, colliders, M.wallYellow, 0, FLOOR_Y, -70.5, TRACK_W + 2, SLAB_H, 4.0);
+    const cp1 = createCheckpointMesh(1, new THREE.Vector3(0, 0.5, -70.5));
     group.add(cp1.mesh);
     checkpoints.push(cp1);
   }
@@ -746,17 +816,23 @@ export function buildFallGuysRun(): MapBuildResult {
     const cz = SEC_Z0 - len * 0.5;
 
     addFloor(group, colliders, M.floorIce, 0, BASE_Y - SLAB_H * 0.5, cz, TRACK_W, SLAB_H, len, { isSlippery: true });
+
+    // Segmented walls with safe alcoves off the ice
     addRails(group, colliders, M.wallPurple, LEFT, RIGHT, BASE_Y - SLAB_H * 0.5, cz, len);
 
-    // 4 fast double-bar sweepers (isBar=true = full spinning bars)
-    const swZPos = [-191, -198, -203, -209];
-    const swSpeeds = [2.2, -2.6, 2.4, -3.0]; // alternating CW/CCW
+    // Safe side islands off the ice for players to stay & wait safely
+    addSafeAlcove(group, colliders, M.wallYellow, M.wallPurple, 'right', -195, 4.0, 4.0, BASE_Y);
+    addSafeAlcove(group, colliders, M.wallYellow, M.wallPurple, 'left', -205, 4.0, 4.0, BASE_Y);
+
+    // 4 fast double-bar sweepers — low hurdle height (armH = 0.55), jumpable!
+    const swZPos = [-191, -198, -202, -208];
+    const swSpeeds = [1.8, -2.0, 1.9, -2.2]; // alternating CW/CCW
     swZPos.forEach((z, i) => {
       makeSweeper(group, rotatingObstacles, M.hazardRed,
         `s6-turb-${i}`,
         0, BASE_Y, z,
-        TRACK_W - 2.5,
-        1.6, 1.1,
+        8.5,                       // leaves safe margin along walls
+        0.55, 0.75,                // jumpable hurdle!
         swSpeeds[i], true, i * Math.PI * 0.4
       );
     });
@@ -805,7 +881,7 @@ export function buildFallGuysRun(): MapBuildResult {
   }
 
   // ── S8: FINAL SPRINT ─────────────────────────────────────── z: -243 → -268 ──
-  // Narrow (6 wide), everything: fast sweepers + wrecking balls + sliding blocks.
+  // Narrow (7 wide), fast sweepers + wrecking balls.
   // Still at Y=8 for continuity.
   {
     const BASE_Y = 8.0;
@@ -813,36 +889,39 @@ export function buildFallGuysRun(): MapBuildResult {
     const len = 25;
     const cz = SEC_Z0 - len * 0.5;
 
-    // Very narrow final floor
+    // Narrow final floor
     const FINAL_W = 7.0;
     addFloor(group, colliders, M.floorCyan, 0, BASE_Y - SLAB_H * 0.5, cz, FINAL_W, SLAB_H, len);
     addRails(group, colliders, M.wallPink, -FINAL_W * 0.5 - 0.35, FINAL_W * 0.5 + 0.35, BASE_Y - SLAB_H * 0.5, cz, len, 1.0);
 
-    // Sweeper 1: left wall, fast
+    // Safe alcove along final sprint
+    addSafeAlcove(group, colliders, M.wallYellow, M.wallPink, 'right', -251, 3.5, 3.5, BASE_Y);
+
+    // Sweeper 1: left wall, jumpable
     makeSweeper(group, rotatingObstacles, M.hazardRed,
       's8-sw-1',
-      -FINAL_W * 0.5 + 0.35, BASE_Y, -248,
-      FINAL_W - 1.0,
-      1.6, 1.0,
-      2.8, false, 0
+      -FINAL_W * 0.5 + 0.35, BASE_Y, -247,
+      5.0,
+      0.55, 0.75,
+      2.0, false, 0
     );
 
-    // Sweeper 2: centre bar, very fast
+    // Sweeper 2: centre bar, jumpable
     makeSweeper(group, rotatingObstacles, M.hazardRed,
       's8-sw-2',
       0, BASE_Y, -255,
-      FINAL_W - 1.5,
-      1.6, 1.0,
-      -3.2, true, Math.PI * 0.3
+      4.8,
+      0.55, 0.75,
+      -2.2, true, Math.PI * 0.3
     );
 
-    // Sweeper 3: right wall, fast
+    // Sweeper 3: right wall, jumpable
     makeSweeper(group, rotatingObstacles, M.hazardRed,
       's8-sw-3',
       FINAL_W * 0.5 - 0.35, BASE_Y, -261,
-      FINAL_W - 1.0,
-      1.6, 1.0,
-      2.5, false, Math.PI
+      5.0,
+      0.55, 0.75,
+      2.0, false, Math.PI
     );
 
     // One final pendulum wrecking ball
