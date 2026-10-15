@@ -338,15 +338,25 @@ export default function App() {
 
     if (!canvasRef.current || !uiOverlayRef.current) return;
 
-    // Create 3D GameEngine
-    const engine = new GameEngine(
-      canvasRef.current,
-      uiOverlayRef.current,
-      customization,
-      activeMapId,
-      activeMode
-    );
-    engine.setInvertMouse(invertMouse);
+    // Create 3D GameEngine safely with error handling
+    let engine: GameEngine;
+    try {
+      engine = new GameEngine(
+        canvasRef.current,
+        uiOverlayRef.current,
+        customization,
+        activeMapId,
+        activeMode
+      );
+      engine.setInvertMouse(invertMouse);
+    } catch (err: any) {
+      console.error('[App] Failed to initialize 3D GameEngine:', err);
+      setScreen('landing');
+      setDisconnectNotice(
+        '⚠️ 3D Graphics (WebGL) could not start. Please make sure "Hardware Acceleration" is enabled in your browser settings (or try Chrome / Edge).'
+      );
+      return;
+    }
 
     // Sync callbacks
     engine.onPhysicsSync = (state) => {
@@ -594,16 +604,8 @@ export default function App() {
                   gameEngineRef.current.triggerInteract();
                 }
               }}
-              onRecover={() => {
-                if (gameEngineRef.current) {
-                  const pos = gameEngineRef.current.localCharacter.root.position;
-                  const vel = gameEngineRef.current.localState.velocity;
-                  gameEngineRef.current.physicsWorld.respawnPlayer(
-                    gameEngineRef.current.localState,
-                    pos,
-                    { x: vel[0], y: vel[1], z: vel[2] } as any
-                  );
-                }
+              onTaunt={() => {
+                gameEngineRef.current?.triggerLocalEmote('taunt');
               }}
               fartCooldown={localState.fartCooldown}
             />

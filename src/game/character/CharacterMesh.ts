@@ -363,6 +363,15 @@ export class CharacterMesh {
         this.leftArm.rotation.x = -0.4;
         this.rightArm.rotation.x = -0.4;
         return;
+      } else if (emote === 'taunt') {
+        this.updateExpression('silly');
+        const t = Date.now() * 0.015;
+        this.bodyMesh.rotation.y = Math.sin(t * 2) * 0.35;
+        this.bodyMesh.position.y = 0.65 + Math.sin(t * 3) * 0.08;
+        this.headGroup.rotation.z = Math.sin(t * 2) * 0.3;
+        this.leftArm.rotation.z = -1.4 + Math.sin(t * 4) * 0.3;
+        this.rightArm.rotation.z = 1.4 - Math.sin(t * 4) * 0.3;
+        return;
       }
     }
 

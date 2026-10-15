@@ -210,7 +210,7 @@ export const LandingMenu: React.FC<Props> = ({
       {/* Footer Info */}
       <footer className="relative z-10 flex flex-wrap items-center justify-between text-xs text-slate-500 pt-4 border-t border-slate-900 gap-2">
         <span>Original 3D Comedy Game • Real-time Socket.IO Multiplayer • 60 FPS Low-Spec Ready</span>
-        <span>Keyboard: W/A/S/D • [F] Fart Boost • [E] Grab/Throw • [R] Recover</span>
+        <span>Keyboard: W/A/S/D • [Space] Jump • [F] Fart Boost • [E] Grab/Throw • [T] Taunt</span>
       </footer>
 
       {/* CREATE ROOM MODAL */}

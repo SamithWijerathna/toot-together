@@ -52,7 +52,8 @@ export class GameEngine {
   private mapGroup: THREE.Group | null = null;
 
   // Animation Loop
-  private clock: THREE.Clock;
+  private startTime: number = 0;
+  private lastTime: number = 0;
   private animFrameId: number | null = null;
   private isRunning: boolean = false;
 
@@ -91,37 +92,61 @@ export class GameEngine {
     this.localCustomization = customization;
     this.currentMapId = mapId;
     this.currentMode = mode;
-    this.clock = new THREE.Clock();
+    this.startTime = performance.now() * 0.001;
+    this.lastTime = this.startTime;
 
     // 1. Scene
     this.scene = new THREE.Scene();
 
-    // 2. Camera
+    // 2. Camera with safe aspect ratio
+    const width = canvas.clientWidth || (typeof window !== 'undefined' ? window.innerWidth : 800) || 800;
+    const height = canvas.clientHeight || (typeof window !== 'undefined' ? window.innerHeight : 600) || 600;
     this.camera = new THREE.PerspectiveCamera(
       65,
-      canvas.clientWidth / canvas.clientHeight,
+      width / height,
       0.1,
       200
     );
 
-    // 3. Renderer with PBR studio environment
-    this.renderer = new THREE.WebGLRenderer({
-      canvas,
-      antialias: true,
-      powerPreference: 'high-performance',
-    });
-    this.renderer.setSize(canvas.clientWidth, canvas.clientHeight, false);
+    // 3. Renderer with robust multi-tiered fallback
+    let renderer: THREE.WebGLRenderer | null = null;
+    const fallbackConfigs: THREE.WebGLRendererParameters[] = [
+      { canvas, antialias: true, powerPreference: 'default' },
+      { canvas, antialias: false, powerPreference: 'default' },
+      { canvas, antialias: false, failIfMajorPerformanceCaveat: false, precision: 'mediump' },
+      { canvas, alpha: false, antialias: false },
+    ];
+
+    for (const cfg of fallbackConfigs) {
+      try {
+        renderer = new THREE.WebGLRenderer(cfg);
+        break;
+      } catch (err) {
+        console.warn('[GameEngine] WebGLRenderer init failed with config, trying fallback:', cfg, err);
+      }
+    }
+
+    if (!renderer) {
+      renderer = new THREE.WebGLRenderer({ canvas });
+    }
+    this.renderer = renderer;
+
+    this.renderer.setSize(width, height, false);
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 1.15;
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    this.renderer.setPixelRatio(Math.min(typeof window !== 'undefined' ? window.devicePixelRatio : 1, 2));
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
-    // RoomEnvironment reflection
-    const pmremGenerator = new THREE.PMREMGenerator(this.renderer);
-    this.scene.environment = pmremGenerator.fromScene(new RoomEnvironment(), 0.04).texture;
-    pmremGenerator.dispose();
+    // RoomEnvironment reflection (safe)
+    try {
+      const pmremGenerator = new THREE.PMREMGenerator(this.renderer);
+      this.scene.environment = pmremGenerator.fromScene(new RoomEnvironment(), 0.04).texture;
+      pmremGenerator.dispose();
+    } catch (e) {
+      console.warn('[GameEngine] Environment reflection generation bypassed:', e);
+    }
 
     // 4. Lighting Rig
     const ambient = new THREE.AmbientLight(0xffffff, 0.7);
@@ -246,7 +271,8 @@ export class GameEngine {
   public start() {
     if (this.isRunning) return;
     this.isRunning = true;
-    this.clock.start();
+    this.startTime = performance.now() * 0.001;
+    this.lastTime = this.startTime;
     this.animate();
   }
 
@@ -262,8 +288,10 @@ export class GameEngine {
     if (!this.isRunning) return;
     this.animFrameId = requestAnimationFrame(this.animate);
 
-    const delta = Math.min(this.clock.getDelta(), 0.08); // cap step to avoid tunneling
-    const time = this.clock.getElapsedTime();
+    const now = performance.now() * 0.001;
+    const delta = Math.min(Math.max(now - this.lastTime, 0.001), 0.08); // cap step to avoid tunneling
+    this.lastTime = now;
+    const time = now - this.startTime;
 
     // 1. Process Input
     this.processInput();
@@ -554,17 +582,8 @@ export class GameEngine {
       if (this.onInteractTriggered && this.localState.holdingObjectId) {
         this.onInteractTriggered(this.localState.holdingObjectId, 'grab');
       }
-    } else if (e.code === 'KeyR') {
-      // Manual reset / recovery
-      if (this.localState.isRagdoll) {
-        this.localState.isRagdoll = false;
-        soundManager.playLand(0.6);
-      } else {
-        // Respawn at checkpoint
-        const pPos = new THREE.Vector3(...this.localState.position);
-        const pVel = new THREE.Vector3(...this.localState.velocity);
-        this.physicsWorld.respawnPlayer(this.localState, pPos, pVel);
-      }
+    } else if (e.code === 'KeyT') {
+      this.triggerLocalEmote('taunt');
     } else if (e.code === 'Digit1') {
       this.triggerLocalEmote('wave');
     } else if (e.code === 'Digit2') {

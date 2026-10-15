@@ -9,7 +9,8 @@ interface Props {
   onSprint: (isSprinting: boolean) => void;
   onFartBoost: (isBoosting: boolean) => void;
   onInteract: () => void;
-  onRecover: () => void;
+  onRecover?: () => void;
+  onTaunt?: () => void;
   fartCooldown: number;
 }
 
@@ -21,6 +22,7 @@ export const MobileControls: React.FC<Props> = ({
   onFartBoost,
   onInteract,
   onRecover,
+  onTaunt,
   fartCooldown,
 }) => {
   // Joystick state
@@ -228,17 +230,21 @@ export const MobileControls: React.FC<Props> = ({
             <span className="text-[9px] font-black">GRAB</span>
           </button>
 
-          {/* Recover / Respawn */}
+          {/* Taunt [T] */}
           <button
             onTouchStart={(e) => {
               e.stopPropagation();
-              onRecover();
+              if (onTaunt) onTaunt();
+              else onRecover?.();
             }}
-            onClick={onRecover}
-            className="w-11 h-11 rounded-2xl bg-slate-900/80 hover:bg-slate-800 border border-slate-700 text-rose-300 flex items-center justify-center shadow-lg transition active:scale-90"
-            title="Recover / Reset [R]"
+            onClick={() => {
+              if (onTaunt) onTaunt();
+              else onRecover?.();
+            }}
+            className="w-11 h-11 rounded-2xl bg-slate-900/80 hover:bg-slate-800 border border-slate-700 text-pink-300 flex items-center justify-center shadow-lg transition active:scale-90 text-sm font-black"
+            title="Taunt rivals [T]"
           >
-            <RefreshCw className="w-4 h-4" />
+            😜
           </button>
         </div>
 

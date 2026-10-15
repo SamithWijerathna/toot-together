@@ -59,8 +59,8 @@ export const HowToPlayModal: React.FC<Props> = ({ onClose }) => {
                 <span className="text-slate-300">Grab / Throw Object</span>
               </div>
               <div className="p-2.5 rounded-xl bg-slate-900 border border-slate-700/50">
-                <span className="text-emerald-400 font-bold block mb-1">Key R</span>
-                <span className="text-slate-300">Recover from Ragdoll</span>
+                <span className="text-emerald-400 font-bold block mb-1">Key T</span>
+                <span className="text-slate-300">😜 Taunt Rivals</span>
               </div>
               <div className="p-2.5 rounded-xl bg-slate-900 border border-slate-700/50">
                 <span className="text-emerald-400 font-bold block mb-1">1, 2, 3</span>

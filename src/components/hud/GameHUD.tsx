@@ -74,7 +74,7 @@ export const GameHUD: React.FC<Props> = ({
         {/* Center: Ragdoll Stumble Notice (if active) */}
         {state.isRagdoll && (
           <div className="pointer-events-auto bg-rose-500/90 text-slate-950 font-black px-4 py-1.5 rounded-full shadow-2xl text-xs uppercase tracking-wider animate-bounce">
-            😵 Stumbled! Press [R] to shake it off!
+            😵 Stumbled! Shaking it off...
           </div>
         )}
 
@@ -203,15 +203,14 @@ export const GameHUD: React.FC<Props> = ({
 
               <button
                 onClick={() => {
-                  soundManager.playClick();
-                  onReset();
+                  soundManager.playBounce();
+                  onTriggerEmote('taunt');
                 }}
-                className="px-3 py-2 rounded-xl bg-slate-800/80 hover:bg-slate-700 border border-slate-700/80 text-xs font-bold text-amber-300 flex items-center gap-1.5 transition"
-                title="Recover from ragdoll or respawn"
+                className="px-3 py-2 rounded-xl bg-slate-800/80 hover:bg-slate-700 border border-slate-700/80 text-xs font-bold text-pink-300 flex items-center gap-1.5 transition active:scale-95 shadow-sm"
+                title="Taunt rivals [T]"
               >
-                <RefreshCw className="w-3.5 h-3.5" />
-                <span>Recover</span>
-                <span className="text-[10px] text-amber-400/80">[R]</span>
+                <span>😜 Taunt</span>
+                <span className="text-[10px] text-pink-400/80 font-mono">[T]</span>
               </button>
             </div>
 
