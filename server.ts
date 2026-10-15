@@ -78,8 +78,8 @@ async function startServer() {
     cors: {
       origin: '*',
     },
-    pingInterval: 10000,
-    pingTimeout: 5000,
+    pingInterval: 5000,
+    pingTimeout: 4000,
   });
 
   // Socket.IO Handling
@@ -328,7 +328,7 @@ async function startServer() {
         if (leavingPlayer) {
           io.to(currentRoomCode).emit('room:chat', {
             sender: 'System',
-            text: `${leavingPlayer.name} left the room.`,
+            text: `${leavingPlayer.name} disconnected from the lobby.`,
             isSystem: true,
           });
         }
@@ -338,7 +338,9 @@ async function startServer() {
     };
 
     socket.on('room:leave', handleLeave);
+    socket.on('disconnecting', handleLeave);
     socket.on('disconnect', handleLeave);
+    socket.on('error', handleLeave);
   });
 
   httpServer.listen(port, hostname, () => {

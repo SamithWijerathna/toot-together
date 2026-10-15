@@ -15,6 +15,7 @@ import { CharacterCustomizer } from './components/menus/CharacterCustomizer';
 import { RoomBrowserModal } from './components/menus/RoomBrowserModal';
 import { HowToPlayModal } from './components/menus/HowToPlayModal';
 import { SettingsModal } from './components/menus/SettingsModal';
+import { WifiOff, X } from 'lucide-react';
 
 const DEFAULT_CUSTOMIZATION: PlayerCustomization = {
   name: `Buddy-${Math.floor(100 + Math.random() * 900)}`,
@@ -103,6 +104,7 @@ export default function App() {
   const [currentRoom, setCurrentRoom] = useState<RoomState | null>(null);
   const [chatMessages, setChatMessages] = useState<Array<{ sender: string; text: string; isSystem?: boolean }>>([]);
   const [completionTime, setCompletionTime] = useState(0);
+  const [disconnectNotice, setDisconnectNotice] = useState<string | null>(null);
 
   // Active game map & mode
   const [activeMapId, setActiveMapId] = useState<MapId>('floating-islands');
@@ -236,6 +238,48 @@ export default function App() {
       }
     };
 
+    const handleDisconnect = () => {
+      if (screen === 'lobby' || screen === 'playing') {
+        soundManager.stopMusic();
+        document.exitPointerLock?.();
+        if (gameEngineRef.current) {
+          gameEngineRef.current.dispose();
+          gameEngineRef.current = null;
+        }
+        setCurrentRoom(null);
+        setScreen('landing');
+        setDisconnectNotice('Disconnected from the lobby due to a network interruption. Please check your connection and rejoin or create a new room.');
+      }
+    };
+
+    const handleReconnect = () => {
+      if (screen === 'lobby' || screen === 'playing') {
+        soundManager.stopMusic();
+        document.exitPointerLock?.();
+        if (gameEngineRef.current) {
+          gameEngineRef.current.dispose();
+          gameEngineRef.current = null;
+        }
+        setCurrentRoom(null);
+        setScreen('landing');
+        setDisconnectNotice('Network reconnected! You were returned to the main menu.');
+      }
+    };
+
+    const handleOffline = () => {
+      if (screen === 'lobby' || screen === 'playing') {
+        soundManager.stopMusic();
+        document.exitPointerLock?.();
+        if (gameEngineRef.current) {
+          gameEngineRef.current.dispose();
+          gameEngineRef.current = null;
+        }
+        setCurrentRoom(null);
+        setScreen('landing');
+        setDisconnectNotice('Your internet connection went offline. Disconnected from the lobby.');
+      }
+    };
+
     socket.on('room:state', handleRoomState);
     socket.on('room:player-joined', handlePlayerJoined);
     socket.on('room:player-left', handlePlayerLeft);
@@ -244,6 +288,9 @@ export default function App() {
     socket.on('game:started', handleGameStarted);
     socket.on('game:player-boost', handleRemoteBoost);
     socket.on('game:player-emote', handleRemoteEmote);
+    socket.on('disconnect', handleDisconnect);
+    socket.io.on('reconnect', handleReconnect);
+    window.addEventListener('offline', handleOffline);
 
     return () => {
       socket.off('room:state', handleRoomState);
@@ -254,6 +301,9 @@ export default function App() {
       socket.off('game:started', handleGameStarted);
       socket.off('game:player-boost', handleRemoteBoost);
       socket.off('game:player-emote', handleRemoteEmote);
+      socket.off('disconnect', handleDisconnect);
+      socket.io.off('reconnect', handleReconnect);
+      window.removeEventListener('offline', handleOffline);
     };
   }, [screen, currentRoom]);
 
@@ -393,6 +443,10 @@ export default function App() {
   const handleLeaveGame = () => {
     document.exitPointerLock?.();
     soundManager.stopMusic();
+    if (gameEngineRef.current) {
+      gameEngineRef.current.dispose();
+      gameEngineRef.current = null;
+    }
     if (currentRoom) {
       networkClient.leaveRoom();
       setCurrentRoom(null);
@@ -421,6 +475,25 @@ export default function App() {
 
   return (
     <div className="relative w-screen h-screen overflow-hidden bg-slate-950 font-sans select-none">
+      {/* Network Disconnect Notice Banner */}
+      {disconnectNotice && (
+        <div className="fixed top-6 left-1/2 -translate-x-1/2 z-50 bg-rose-950/95 border-2 border-rose-500 text-white px-5 py-3.5 rounded-2xl shadow-2xl flex items-center gap-3.5 max-w-lg">
+          <div className="p-2 bg-rose-500/20 rounded-xl text-rose-400 shrink-0">
+            <WifiOff className="w-5 h-5" />
+          </div>
+          <p className="flex-1 text-sm font-semibold text-rose-100 leading-snug">
+            {disconnectNotice}
+          </p>
+          <button
+            onClick={() => setDisconnectNotice(null)}
+            className="p-1 hover:bg-white/10 rounded-lg text-slate-400 hover:text-white transition shrink-0"
+            title="Dismiss"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+
       {/* 1. Landing Screen */}
       {screen === 'landing' && (
         <LandingMenu
